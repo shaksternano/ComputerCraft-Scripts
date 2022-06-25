@@ -1,12 +1,15 @@
 local stringDigWidth = arg[1]
-local noDeposit = string.lower(arg[2])
+local noDeposit = arg[2]
 local DIG_WIDTH
 if (stringDigWidth == nil) then
     DIG_WIDTH = 15
 else
-    DIG_WIDTH = tonumber(stringDigWidth)
+    DIG_WIDTH = tonumber(stringDigWidth) - 1
 end
 
+if (noDeposit ~= nil) then
+    noDeposit = string.lower(noDeposit)
+end
 local needToDeposit = noDeposit ~= "nodeposit"
 
 local POSITIVE_X = "positive_x"
