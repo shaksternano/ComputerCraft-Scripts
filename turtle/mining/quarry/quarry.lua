@@ -1,4 +1,13 @@
-local DIG_WIDTH = 2
+local stringDigWidth = arg[1]
+local noDeposit = string.lower(arg[2])
+local DIG_WIDTH
+if (stringDigWidth == nil) then
+    DIG_WIDTH = 15
+else
+    DIG_WIDTH = tonumber(stringDigWidth)
+end
+
+local needToDeposit = noDeposit ~= "nodeposit"
 
 local POSITIVE_X = "positive_x"
 local NEGATIVE_X = "negative_x"
@@ -138,13 +147,17 @@ function needToRefuel()
 end
 
 function isInventoryFull()
-    for i = 1, 16 do
-        if turtle.getItemCount(i) == 0 then
-            return false
+    if (needToDeposit) then
+        for i = 1, 16 do
+            if turtle.getItemCount(i) == 0 then
+                return false
+            end
         end
+    
+        return true
+    else
+        return false
     end
-
-    return true
 end
 
 function travelTo(x, y, z)
@@ -171,12 +184,6 @@ function travelTo(x, y, z)
             digAndMoveForward()
         end
     end
-end
-
-function resupply()
-    travelTo(0, 0, 0)
-    deposit()
-    refuelFromStation()
 end
 
 function refuel()
@@ -206,17 +213,27 @@ function refuelFromStation()
 end
 
 function deposit()
-    turnLeft()
-    for i = 1, 16 do
-        turtle.select(i)
-        turtle.drop()
+    if (needToDeposit) then
+        turnLeft()
+        for i = 1, 16 do
+            turtle.select(i)
+            turtle.drop()
+        end
+        turnRight()
     end
-    turnRight()
+end
+
+function resupply()
+    travelTo(0, 0, 0)
+    oritentate(START_ORIENTATION)
+    deposit()
+    refuelFromStation()
 end
 
 function execute()
     resupply()
     while canMove do
+        turtle.select(1)
         if needToRefuel() then
             refuel()
         end
