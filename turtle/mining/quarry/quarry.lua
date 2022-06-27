@@ -1,10 +1,18 @@
 local stringDigWidth = arg[1]
-local noDeposit = arg[2]
+local stringStartY = arg[2]
+local noDeposit = arg[3]
 local DIG_WIDTH
 if (stringDigWidth == nil) then
     DIG_WIDTH = 15
 else
     DIG_WIDTH = tonumber(stringDigWidth) - 1
+end
+
+local START_Y
+if (stringStartY == nil) then
+    START_Y = 0
+else
+    START_Y = tonumber(stringStartY)
 end
 
 if (noDeposit ~= nil) then
@@ -229,12 +237,22 @@ end
 function resupply()
     travelTo(0, 0, 0)
     oritentate(START_ORIENTATION)
+    refuel()
     deposit()
     refuelFromStation()
 end
 
 function execute()
     resupply()
+
+    for i = 1, math.abs(START_Y) do
+        if (START_Y > 0) then
+            digAndMoveUp()
+        else
+            digAndMoveDown()
+        end
+    end
+
     while canMove do
         turtle.select(1)
         if needToRefuel() then
