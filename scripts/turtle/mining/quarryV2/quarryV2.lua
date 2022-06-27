@@ -1,24 +1,12 @@
 local stringDigWidth = arg[1]
-local stringStartY = arg[2]
-local noDeposit = arg[3]
 local DIG_WIDTH
 if (stringDigWidth == nil) then
-    DIG_WIDTH = 15
+    DIG_WIDTH = 16
 else
-    DIG_WIDTH = tonumber(stringDigWidth) - 1
+    DIG_WIDTH = math.min(tonumber(stringDigWidth) - 1, 6)
 end
 
-local START_Y
-if (stringStartY == nil) then
-    START_Y = 0
-else
-    START_Y = tonumber(stringStartY)
-end
-
-if (noDeposit ~= nil) then
-    noDeposit = string.lower(noDeposit)
-end
-local needToDeposit = noDeposit ~= "nodeposit"
+local HOLES_PER_ROW = math.floor(DIG_WIDTH / 5)
 
 local POSITIVE_X = "positive_x"
 local NEGATIVE_X = "negative_x"
@@ -31,12 +19,6 @@ local relativeZ = 0
 
 local START_ORIENTATION = POSITIVE_X
 local relativeOrientation = START_ORIENTATION
-
-local nextTurnIsRight = true
-
-local movedX = 0
-local movedZ = 0
-local canMove = true
 
 function digAndMoveForward()
     local moved = turtle.forward()
@@ -124,7 +106,7 @@ function turn(right)
     end
 end
 
-function oritentate(direction)
+function orientate(direction)
     while relativeOrientation ~= direction do
         turnRight()
     end
@@ -138,7 +120,7 @@ function faceTowardsX(x)
         direction = NEGATIVE_X
     end
 
-    oritentate(direction)
+    orientate(direction)
 end
 
 function faceTowardsZ(z)
@@ -149,7 +131,7 @@ function faceTowardsZ(z)
         direction = NEGATIVE_Z
     end
 
-    oritentate(direction)
+    orientate(direction)
 end
 
 function needToRefuel()
@@ -158,41 +140,40 @@ function needToRefuel()
 end
 
 function isInventoryFull()
-    if (needToDeposit) then
-        for i = 1, 16 do
-            if turtle.getItemCount(i) == 0 then
-                return false
-            end
+    for i = 1, 16 do
+        if turtle.getItemCount(i) == 0 then
+            return false
         end
-    
-        return true
-    else
-        return false
     end
+
+    return true
 end
 
 function travelTo(x, y, z)
     if x ~= relativeX or y ~= relativeY or z ~= relativeZ then
-        local toTravelY = y - relativeY
-        local goUp = toTravelY > 0
-        for i = 1, math.abs(toTravelY) do
-            if (goUp) then
+        local toTravelY = math.abs(y - relativeY)
+        if (y > relativeY) then
+            for _ = 1, toTravelY do
                 digAndMoveUp()
-            else
-                digAndMoveDown()
             end
         end
 
         faceTowardsX(x)
         local toTravelX = x - relativeX
-        for i = 1, math.abs(toTravelX) do
+        for _ = 1, math.abs(toTravelX) do
             digAndMoveForward()
         end
 
         faceTowardsZ(z)
         local toTravelZ = z - relativeZ
-        for i = 1, math.abs(toTravelZ) do
+        for _ = 1, math.abs(toTravelZ) do
             digAndMoveForward()
+        end
+
+        if (y < relativeY) then
+            for _ = 1, toTravelY do
+                digAndMoveDown()
+            end
         end
     end
 end
@@ -201,7 +182,7 @@ function refuel()
     for i = 1, 16 do
         if turtle.getFuelLevel() < turtle.getFuelLimit() then
             turtle.select(i)
-            for i = 1, turtle.getItemCount() do
+            for _ = 1, turtle.getItemCount() do
                 if turtle.getFuelLevel() < turtle.getFuelLimit() then
                     turtle.refuel(1)
                 else
@@ -218,83 +199,107 @@ function refuelFromStation()
     turtle.select(1)
     local hasMoreItems = true
     while turtle.getFuelLevel() < turtle.getFuelLimit() and hasMoreItems do
-        hasMoreItems = turtle.suckUp()
+        hasMoreItems = turtle.suckUp(1)
         refuel()
     end
 end
 
 function deposit()
-    if (needToDeposit) then
-        turnLeft()
+    turnLeft()
+    turnLeft()
         for i = 1, 16 do
             turtle.select(i)
             turtle.drop()
         end
-        turnRight()
-    end
+    turnRight()
+    turnRight()
 end
 
 function resupply()
-    travelTo(0, 0, 0)
-    oritentate(START_ORIENTATION)
     refuel()
+    travelTo(0, 0, 0)
+    orientate(START_ORIENTATION)
     deposit()
     refuelFromStation()
+end
+
+function resupplyAndReturn()
+    local currentX = relativeX
+    local currentY = relativeY
+    local currentZ = relativeZ
+    local currentOrientation = relativeOrientation
+    resupply()
+    travelTo(currentX, currentY, currentZ)
+    orientate(currentOrientation)
 end
 
 function execute()
     resupply()
 
-    for i = 1, math.abs(START_Y) do
-        if (START_Y > 0) then
-            digAndMoveUp()
-        else
-            digAndMoveDown()
-        end
+    local turnBack = true
+
+    for i = 0, DIG_WIDTH - 2 do
+        
     end
 
-    while canMove do
-        turtle.select(1)
-        if needToRefuel() then
-            refuel()
-        end
-        
-        if (needToRefuel() or isInventoryFull()) then
-            local currentX = relativeX
-            local currentY = relativeY
-            local currentZ = relativeZ
-            local currentOrientation = relativeOrientation
-            resupply()
-            travelTo(currentX, currentY, currentZ)
-            oritentate(currentOrientation)
-        end
+    local digIndex = 0
+    for i = 1, DIG_WIDTH - 1 do
+        for j = 1, DIG_WIDTH - 1 do
+            if needToRefuel() then
+                refuel()
+            end
 
-        canMove = digAndMoveForward()
-        if (canMove) then
-            movedX = movedX + 1
+            if digIndex == 0 then
+                local movedDown = 0
+                local wentDown = true
+                while wentDown do
+                    if needToRefuel() or isInventoryFull() then
+                        resupplyAndReturn()
+                    end
 
-            if movedX == DIG_WIDTH then
-                movedX = 0
-                if movedZ == DIG_WIDTH then
-                    movedZ = 0
-                    nextTurnIsRight = not nextTurnIsRight
-                    turn(nextTurnIsRight)
-                    canMove = digAndMoveDown()
-                else
-                    turn(nextTurnIsRight)
-                    canMove = digAndMoveForward()
-                    if (canMove) then
-                        turn(nextTurnIsRight)
-                        movedZ = movedZ + 1
-                        nextTurnIsRight = not nextTurnIsRight
+                    wentDown = digAndMoveDown()
+
+                    if wentDown then
+                        for _ = 1, 4 do
+                            local success, data = turtle.inspect()
+                            if success then
+                                if string.find(data.name, "ore") then
+                                    turtle.dig()
+                                end
+                            end
+                            turnRight()
+                        end
+
+                        movedDown = movedDown + 1
                     end
                 end
+
+                for _ = 1, movedDown do
+                    digAndMoveUp()
+                end
             end
+
+            digAndMoveForward()
+            digIndex = digIndex + 1
         end
+
+        if (turnBack) then
+            turnRight()
+            digAndMoveForward()
+            turnRight()
+            digIndex = 2
+        else
+            turnLeft()
+            digAndMoveForward()
+            turnLeft()
+            digIndex = 1
+        end
+
+        turnBack = not turnBack
     end
 
     travelTo(0, 0, 0)
-    oritentate(START_ORIENTATION)
+    orientate(START_ORIENTATION)
     deposit()
 end
 
