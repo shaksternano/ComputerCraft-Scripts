@@ -3,10 +3,8 @@ local DIG_WIDTH
 if (stringDigWidth == nil) then
     DIG_WIDTH = 16
 else
-    DIG_WIDTH = math.min(tonumber(stringDigWidth) - 1, 6)
+    DIG_WIDTH = math.max(tonumber(stringDigWidth), 6)
 end
-
-local HOLES_PER_ROW = math.floor(DIG_WIDTH / 5)
 
 local POSITIVE_X = "positive_x"
 local NEGATIVE_X = "negative_x"
@@ -233,69 +231,103 @@ function resupplyAndReturn()
     orientate(currentOrientation)
 end
 
+function digOres()
+    local movedDown = 0
+    local wentDown = true
+    while wentDown do
+        if needToRefuel() or isInventoryFull() then
+            resupplyAndReturn()
+        end
+
+        wentDown = digAndMoveDown()
+
+        if wentDown then
+            for _ = 1, 4 do
+                local success, data = turtle.inspect()
+                if success then
+                    if string.find(data.name, "ore") then
+                        turtle.dig()
+                    end
+                end
+                turnRight()
+            end
+
+            movedDown = movedDown + 1
+        end
+    end
+
+    for _ = 1, movedDown do
+        digAndMoveUp()
+    end
+end
+
+function digLane()
+    for i = 1, DIG_WIDTH - 1 do
+        if needToRefuel() then
+            refuel()
+        end
+
+        if i == digIndex then
+            digOres()
+            digIndex = digIndex + 5
+        end
+
+        digAndMoveForward()
+    end
+end
+
 function execute()
     resupply()
 
     local turnBack = true
-
-    for i = 0, DIG_WIDTH - 2 do
-        
-    end
-
-    local digIndex = 0
-    for i = 1, DIG_WIDTH - 1 do
+    local digIndex = 1
+    for i = 1, DIG_WIDTH do
         for j = 1, DIG_WIDTH - 1 do
             if needToRefuel() then
                 refuel()
             end
 
-            if digIndex == 0 then
-                local movedDown = 0
-                local wentDown = true
-                while wentDown do
-                    if needToRefuel() or isInventoryFull() then
-                        resupplyAndReturn()
-                    end
-
-                    wentDown = digAndMoveDown()
-
-                    if wentDown then
-                        for _ = 1, 4 do
-                            local success, data = turtle.inspect()
-                            if success then
-                                if string.find(data.name, "ore") then
-                                    turtle.dig()
-                                end
-                            end
-                            turnRight()
-                        end
-
-                        movedDown = movedDown + 1
-                    end
-                end
-
-                for _ = 1, movedDown do
-                    digAndMoveUp()
-                end
+            if j == digIndex then
+                digOres()
+                digIndex = digIndex + 5
             end
 
             digAndMoveForward()
-            digIndex = digIndex + 1
         end
 
-        if (turnBack) then
-            turnRight()
-            digAndMoveForward()
-            turnRight()
-            digIndex = 2
-        else
-            turnLeft()
-            digAndMoveForward()
-            turnLeft()
-            digIndex = 1
+        if digIndex == DIG_WIDTH then
+            digOres()
         end
 
-        turnBack = not turnBack
+        if (i ~= DIG_WIDTH) then
+            local newDigIndex
+            if (turnBack) then
+                turnRight()
+                digAndMoveForward()
+                turnRight()
+
+                newDigIndex = digIndex + 3
+                if newDigIndex > DIG_WIDTH then
+                    newDigIndex = digIndex - 2
+                end
+            else
+                turnLeft()
+                digAndMoveForward()
+                turnLeft()
+
+                newDigIndex = digIndex + 2
+                if (newDigIndex > DIG_WIDTH) then
+                    newDigIndex = digIndex - 3
+                end
+            end
+
+            digIndex = DIG_WIDTH - newDigIndex + 1
+            turnBack = not turnBack
+
+            while digIndex <= 0 do
+                digIndex = digIndex + 5
+            end
+        end
     end
 
     travelTo(0, 0, 0)
