@@ -38,7 +38,7 @@ local movedX = 0
 local movedZ = 0
 local canMove = true
 
-function digAndMoveForward()
+function forward()
     local moved = turtle.forward()
     if not moved then
         turtle.dig()
@@ -186,13 +186,13 @@ function travelTo(x, y, z)
         faceTowardsX(x)
         local toTravelX = x - relativeX
         for _ = 1, math.abs(toTravelX) do
-            digAndMoveForward()
+            forward()
         end
 
         faceTowardsZ(z)
         local toTravelZ = z - relativeZ
         for _ = 1, math.abs(toTravelZ) do
-            digAndMoveForward()
+            forward()
         end
     end
 end
@@ -271,7 +271,7 @@ function execute()
             orientate(currentOrientation)
         end
 
-        canMove = digAndMoveForward()
+        canMove = forward()
         if canMove then
             movedX = movedX + 1
 
@@ -284,7 +284,7 @@ function execute()
                     canMove = digAndMoveDown()
                 else
                     turn(nextTurnIsRight)
-                    canMove = digAndMoveForward()
+                    canMove = forward()
                     if canMove then
                         turn(nextTurnIsRight)
                         movedZ = movedZ + 1

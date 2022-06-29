@@ -18,7 +18,7 @@ local relativeZ = 0
 local START_ORIENTATION = POSITIVE_X
 local relativeOrientation = START_ORIENTATION
 
-function digAndMoveForward()
+function forward()
     local moved = turtle.forward()
     if not moved then
         turtle.dig()
@@ -159,13 +159,13 @@ function travelTo(x, y, z)
         faceTowardsX(x)
         local toTravelX = x - relativeX
         for _ = 1, math.abs(toTravelX) do
-            digAndMoveForward()
+            forward()
         end
 
         faceTowardsZ(z)
         local toTravelZ = z - relativeZ
         for _ = 1, math.abs(toTravelZ) do
-            digAndMoveForward()
+            forward()
         end
 
         if (y < relativeY) then
@@ -272,7 +272,7 @@ function digLane()
             digIndex = digIndex + 5
         end
 
-        digAndMoveForward()
+        forward()
     end
 end
 
@@ -292,7 +292,7 @@ function execute()
                 digIndex = digIndex + 5
             end
 
-            digAndMoveForward()
+            forward()
         end
 
         if digIndex == DIG_WIDTH then
@@ -303,7 +303,7 @@ function execute()
             local newDigIndex
             if (turnBack) then
                 turnRight()
-                digAndMoveForward()
+                forward()
                 turnRight()
 
                 newDigIndex = digIndex + 3
@@ -312,7 +312,7 @@ function execute()
                 end
             else
                 turnLeft()
-                digAndMoveForward()
+                forward()
                 turnLeft()
 
                 newDigIndex = digIndex + 2
