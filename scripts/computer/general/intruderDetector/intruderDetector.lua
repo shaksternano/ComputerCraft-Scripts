@@ -1,50 +1,71 @@
-local detector = peripheral.find("playerDetector")
-if detector == nil then error("Player Detector not found!") end
-local webhook = arg[1]
-local detectionRange = tonumber(arg[2])
-local detectionRate = tonumber(arg[3])
-local ignoredPlayers = {}
-local ignoredPlayersStartIndex = 4
-if #arg > ignoredPlayersStartIndex - 1 then
-    for i = ignoredPlayersStartIndex, #arg do
-        ignoredPlayers[arg[i]] = true
+local DETECTOR = peripheral.find("playerDetector")
+local AR_CONTROLLER = peripheral.find("arController")
+if DETECTOR == nil then error("Player Detector not found!") end
+local WEBHOOK_URL = arg[1]
+local DETECTION_RANGE = tonumber(arg[2])
+local DETECTION_RATE = tonumber(arg[3])
+local INGORED_PLAYERS = {}
+local IGNORED_PLAYERS_START_INDEX = 4
+if #arg > IGNORED_PLAYERS_START_INDEX - 1 then
+    for i = IGNORED_PLAYERS_START_INDEX, #arg do
+        INGORED_PLAYERS[arg[i]] = true
     end
 end
+local INTRUDER_MESSAGE_HEADER = "Intruders detected:"
 
-function getIntruders(range)
-    local players = detector.getPlayersInRange(range)
+function getIntruders(range --[[number]]) --> table
+    local players = DETECTOR.getPlayersInRange(range)
     local intruders = {}
     for _, player in pairs(players) do
-        if not ignoredPlayers[player] then
-            intruderPos = detector.getPlayerPos(player)
+        if not INGORED_PLAYERS[player] then
+            intruderPos = DETECTOR.getPlayerPos(player)
             intruders[player] = intruderPos
         end
     end
     return intruders
 end
 
-function intruderMessage(intruders)
-    local message = "Intruders detected:\n"
+function getIntruderDetails(intruder --[[string]], pos --[[table]]) --> string
+    return intruder .. " is at (" .. pos.x .. ", " .. pos.y .. ", " .. pos.z .. ")"
+end
+
+function drawArMessage(intruders --[[table]]) --> nothing
+    if AR_CONTROLLER ~= nil then
+        local x = 10
+        local y = 60
+        AR_CONTROLLER.drawString(INTRUDER_MESSAGE_HEADER, x, y, 0xFFFFFF)
+        x = x + 20
+        for intruder, pos in pairs(intruders) do
+            y = y + 10
+            local intruderDetails = getIntruderDetails(intruder, pos)
+            AR_CONTROLLER.drawString(intruderDetails, x, y, 0xFFFFFF)
+        end
+    end
+end
+
+function createWebhookMessage(intruders --[[table]]) --> string
+    local message = INTRUDER_MESSAGE_HEADER .. "\n"
     for intruder, pos in pairs(intruders) do
-        message = message .. "    " .. intruder .. " is at (" .. pos.x .. ", " .. pos.y .. ", " .. pos.z .. ")\n"
+        message = message .. "    " .. getIntruderDetails(intruder, pos) .. "\n"
     end
     return message
 end
 
-function sendWebhook(message)
+function sendWebhook(message --[[string]]) --> nothing 
     local request = textutils.serializeJSON({ content = message })
     local headers = { ["Content-Type"] = "application/json" }
-    local response = http.post(webhook, request, headers)
-    if response == nil then
-        print("Failed to send webhook")
-    end
+    http.post(WEBHOOK_URL, request, headers)
 end
 
 while true do
-    local intruders = getIntruders(detectionRange)
+    if AR_CONTROLLER ~= nil then
+        AR_CONTROLLER.clear()
+    end
+    local intruders = getIntruders(DETECTION_RANGE)
     if next(intruders) ~= nil then
-        local message = intruderMessage(intruders)
+        drawArMessage(intruders)
+        local message = createWebhookMessage(intruders)
         sendWebhook(message)
     end
-    os.sleep(detectionRate)
+    os.sleep(DETECTION_RATE)
 end
